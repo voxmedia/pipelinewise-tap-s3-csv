@@ -23,6 +23,7 @@ CONFIG_CONTRACT = Schema(
             Optional("s3_proxies"): object,
             Optional("encoding"): str,
             Optional("set_empty_values_null"): bool,
+            Optional("escapechar"): str,
         }
     ]
 )
