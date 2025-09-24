@@ -4,6 +4,8 @@ Modules containing all AWS S3 related features
 
 from __future__ import annotations, division
 
+import gzip
+import io
 import itertools
 import os
 import re
@@ -448,12 +450,12 @@ def list_files_in_bucket(
 
 
 @retry_pattern()
-def get_file_handle(config: Dict, s3_path: str) -> Iterator:
+def get_file_handle(config: Dict, s3_path: str):
     """
-    Get a iterator of file located in the s3 path
+    Get a file handle for a file located in the s3 path, with support for gzip decompression
     :param config: tap config
     :param s3_path: file path in S3
-    :return: file Body iterator
+    :return: file handle (decompressed if gzipped)
     """
     bucket = config["bucket"]
     aws_endpoint_url = config.get("aws_endpoint_url")
@@ -481,4 +483,49 @@ def get_file_handle(config: Dict, s3_path: str) -> Iterator:
 
     s3_bucket = s3_client.Bucket(bucket)
     s3_object = s3_bucket.Object(s3_path)
-    return s3_object.get()["Body"]
+    
+    # Get the raw stream
+    body_stream = s3_object.get()["Body"]
+    
+    # Read the first few bytes to check if it's gzipped
+    # Gzip files start with magic bytes: 1f 8b
+    initial_bytes = body_stream.read(2)
+    
+    # Check if file is gzipped
+    if len(initial_bytes) >= 2 and initial_bytes[0] == 0x1f and initial_bytes[1] == 0x8b:
+        LOGGER.info('Detected gzipped file: %s', s3_path)
+        
+        # Read the entire compressed content into memory
+        # This is necessary because we need to prepend the magic bytes we already read
+        remaining_bytes = body_stream.read()
+        full_compressed_content = initial_bytes + remaining_bytes
+        
+        # Create a BytesIO object from the full content and wrap with GzipFile
+        compressed_stream = io.BytesIO(full_compressed_content)
+        gzipped_file = gzip.GzipFile(fileobj=compressed_stream, mode='rb')
+        
+        # Create a file-like object that provides the expected interface
+        class GzipFileWrapper:
+            def __init__(self, gzip_file):
+                self._gzip_file = gzip_file
+                self._raw_stream = io.TextIOWrapper(gzip_file, encoding='utf-8-sig')
+            
+            def __getattr__(self, name):
+                return getattr(self._raw_stream, name)
+        
+        return GzipFileWrapper(gzipped_file)
+    else:
+        LOGGER.info('File is not gzipped: %s', s3_path)
+        # Recreate the stream with the initial bytes prepended
+        remaining_bytes = body_stream.read()
+        full_content = initial_bytes + remaining_bytes
+        
+        # Create a file-like object that provides the expected interface
+        class StreamWrapper:
+            def __init__(self, content):
+                self._raw_stream = io.TextIOWrapper(io.BytesIO(content), encoding='utf-8-sig')
+            
+            def __getattr__(self, name):
+                return getattr(self._raw_stream, name)
+        
+        return StreamWrapper(full_content)
