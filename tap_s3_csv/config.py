@@ -7,7 +7,7 @@ from __future__ import annotations
 from voluptuous import All, Optional, Required, Schema
 
 # Define the table schema separately
-TABLE_SCHEMA = Schema({
+CONFIG_CONTRACT = Schema({
     Required("table_name"): str,
     Required("search_pattern"): str,
     Optional("key_properties"): [str],
