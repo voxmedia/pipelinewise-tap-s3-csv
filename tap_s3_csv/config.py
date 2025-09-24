@@ -24,6 +24,3 @@ TABLE_SCHEMA = Schema({
     Optional("set_empty_values_null"): bool,
     Optional("escapechar"): str,
 })
-
-# Use All() to validate each item in the list
-CONFIG_CONTRACT = Schema(All([TABLE_SCHEMA]))

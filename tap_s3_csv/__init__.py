@@ -112,7 +112,7 @@ def main() -> None:
         s3.setup_aws_client(config)
 
     if args.discover:
-        do_discover(args.config)
+        do_discover(config)
     elif args.properties:
         do_sync(config, args.properties, args.state)
 
