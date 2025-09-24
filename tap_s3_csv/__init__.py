@@ -98,7 +98,7 @@ def main() -> None:
     config = args.config
 
     # Reassign the config tables to the validated object
-    config["tables"] = CONFIG_CONTRACT(config.get("tables", []))
+    config["tables"] = CONFIG_CONTRACT(config.get("tables", {}))
 
     try:
         for _ in s3.list_files_in_bucket(
