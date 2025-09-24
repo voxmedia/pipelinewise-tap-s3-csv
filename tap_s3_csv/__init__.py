@@ -33,10 +33,16 @@ def do_discover(config: Dict) -> None:
     if not streams:
         if not config.get("warning_if_no_files", False):
             raise Exception("No streams found")
+        else:
+            # Output empty catalog when no streams found but warnings are enabled
+            LOGGER.warning("No streams found, but warning_if_no_files is enabled. Outputting empty catalog.")
+            catalog = {"streams": []}
+            ujson.dump(catalog, sys.stdout, indent=2)
     else:
         catalog = {"streams": streams}
         ujson.dump(catalog, sys.stdout, indent=2)
-        LOGGER.info("Finished discover")
+    
+    LOGGER.info("Finished discover")
 
 
 def stream_is_selected(meta_data: Dict) -> bool:
